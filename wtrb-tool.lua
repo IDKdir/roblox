@@ -5,34 +5,77 @@ selection = nil
 
 x, y, z = 0, 0, 0
 
-local function Divide(part, targetBlockSize)
-    local result = {}
-
-	local function Elw(vec, op)
-		return Vector3.new(op(vec.X), op(vec.Y), op(vec.Z))
-	end
-	
-	local blockCount = Elw(part.Size, function(l) return math.floor(l / targetBlockSize) end)
-	local blockSize = part.Size / blockCount
-	
-	for x = 1, blockCount.X do
-		for y = 1, blockCount.Y do
-			for z = 1, blockCount.Z do
-				local offset = (part.Size + blockSize) / 2.0
-				local block = Instance.new("Part")
-                block.Parent = game.ReplicatedStorage
-				block.Size = blockSize
-				block.CFrame = part.CFrame:ToWorldSpace(CFrame.new(Vector3.new(x,y,z) * blockSize - offset))
-				block.Anchored = true
-                table.insert(result, block.CFrame)
-			end
-		end
-	end
-
-    return result
+local function Divide(part, targetBlockSize, hollow)
+    if not hollow then
+        local result = {}
+        local size = part.Size
+        local countX = math.max(math.ceil(size.X / targetBlockSize), 1)
+        local countY = math.max(math.ceil(size.Y / targetBlockSize), 1)
+        local countZ = math.max(math.ceil(size.Z / targetBlockSize), 1)
+        local blockSize = Vector3.new(
+            size.X / countX,
+            size.Y / countY,
+            size.Z / countZ
+        )
+        for xIndex = 0, countX - 1 do
+            for yIndex = 0, countY - 1 do
+                for zIndex = 0, countZ - 1 do
+                    local block = Instance.new("Part")
+                    block.Size = blockSize
+                    block.Anchored = true
+                    block.Parent = game.ReplicatedStorage
+                    local xPos = (xIndex + 0.5)*blockSize.X - size.X/2
+                    local yPos = (yIndex + 0.5)*blockSize.Y - size.Y/2
+                    local zPos = (zIndex + 0.5)*blockSize.Z - size.Z/2
+                    block.CFrame = part.CFrame * CFrame.new(xPos, yPos, zPos)
+                    table.insert(result, block.CFrame)
+                end
+            end
+        end
+        return result
+    else
+        local result = {}
+        local size = part.Size
+        local countX = math.max(math.ceil(size.X / targetBlockSize), 1)
+        local countY = math.max(math.ceil(size.Y / targetBlockSize), 1)
+        local countZ = math.max(math.ceil(size.Z / targetBlockSize), 1)
+        local blockSize = Vector3.new(
+            size.X / countX,
+            size.Y / countY,
+            size.Z / countZ
+        )
+        for xIndex = 0, countX - 1 do
+            for yIndex = 0, countY - 1 do
+                for zIndex = 0, countZ - 1 do
+                    local isBoundary = false
+                    if xIndex == 0 or xIndex == (countX - 1) then
+                        isBoundary = true
+                    end
+                    if yIndex == 0 or yIndex == (countY - 1) then
+                        isBoundary = true
+                    end
+                    if zIndex == 0 or zIndex == (countZ - 1) then
+                        isBoundary = true
+                    end
+                    if isBoundary then
+                        local block = Instance.new("Part")
+                        block.Size = blockSize
+                        block.Anchored = true
+                        block.Parent = game.ReplicatedStorage
+                        local xPos = (xIndex + 0.5) * blockSize.X - size.X / 2
+                        local yPos = (yIndex + 0.5) * blockSize.Y - size.Y / 2
+                        local zPos = (zIndex + 0.5) * blockSize.Z - size.Z / 2
+                        block.CFrame = part.CFrame * CFrame.new(xPos, yPos, zPos)
+                        table.insert(result, block.CFrame)
+                    end
+                end
+            end
+        end
+        return result
+    end
 end
 
-function fill(a, b, asset)
+function fill(a, b, asset, hollow)
     local difference = b.Position - a.Position
     local temporary = a:Clone()
     temporary.Transparency = 0.5
@@ -41,9 +84,8 @@ function fill(a, b, asset)
     temporary.Position = ((a.Position + b.Position) / 2)
     temporary.Size = Vector3.new(math.abs(difference.X) + 4, math.abs(difference.Y) + 4, math.abs(difference.Z) + 4)
 
-    local parts = Divide(temporary, 4)
-    for i, v in parts do
-        if v == a.Position then continue end
+    local parts = Divide(temporary, 4, hollow)
+    for i, v in ipairs(parts) do
         task.spawn(function()
             game:GetService("ReplicatedStorage").BuildingBridge.Stamp:InvokeServer(asset, v)
         end)
@@ -278,7 +320,7 @@ end)
 Save.MouseButton1Click:connect(function()
     x, y, z = 0, 0, 0
     start_part, end_part = target.PrimaryPart, cloned.PrimaryPart
-    fill(start_part, end_part, asset)
+    fill(start_part, end_part, asset, true)
 
     target = nil
     selection:Destroy()

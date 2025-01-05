@@ -2,6 +2,7 @@ asset = 0
 cloned = nil
 target = nil
 selection = nil
+configuration = nil
 
 x, y, z = 0, 0, 0
 
@@ -87,7 +88,12 @@ function fill(a, b, asset, hollow)
     local parts = Divide(temporary, 4, hollow)
     for i, v in ipairs(parts) do
         task.spawn(function()
-            game:GetService("ReplicatedStorage").BuildingBridge.Stamp:InvokeServer(asset, v)
+            local a, b = game:GetService("ReplicatedStorage").BuildingBridge.Stamp:InvokeServer(asset, v)
+            if configuration ~= nil then
+                for i, v in pairs(configuration:GetChildren()) do
+                    game:GetService("ReplicatedStorage").BuildingBridge.Config:InvokeServer(b['Configuration'][v.Name], v.Value)
+                end
+            end
         end)
         task.wait()
     end
@@ -339,6 +345,11 @@ a.Activated:connect(function()
 
     if not target.Parent:FindFirstChild('AssetId') then return end
     target = target.Parent
+
+    if target:FindFirstChild('Configuration') then
+        configuration = target['Configuration']:Clone()
+    end
+
     asset = target.AssetId.Value
 
     cloned = Instance.new('Model')
